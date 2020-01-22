@@ -79,6 +79,9 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
       return page;
     }
   }
+  if (free_list_.empty() && replacer_->Size() == 0) {
+    return nullptr;
+  }
   // first find the free list
   frame_id_t r = GetAvailableFrameImpl();
   Page* page = &(pages_[r]);

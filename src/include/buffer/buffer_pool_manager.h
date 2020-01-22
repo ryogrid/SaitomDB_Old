@@ -139,6 +139,8 @@ class BufferPoolManager {
    * @return nullptr if no new pages could be created, otherwise pointer to new page
    */
   Page *NewPageImpl(page_id_t *page_id);
+  frame_id_t GetAvailableFrameImpl();
+
 
   /**
    * Deletes a page from the buffer pool.

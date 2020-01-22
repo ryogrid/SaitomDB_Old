@@ -28,7 +28,7 @@ ClockReplacer::~ClockReplacer() = default;
 
 bool ClockReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard<std::mutex> lock(latch_);
-  if (Size() == 0) {
+  if (frame_map_.size() == 0) {
     return false;
   }
   bool found = false;
@@ -43,8 +43,6 @@ bool ClockReplacer::Victim(frame_id_t *frame_id) {
         clock_[clock_hand_].second = false;
       }
     }
-    return true;
-    printf("%d\n",clock_hand_);
     clock_hand_ = (clock_hand_ + 1) % clock_.size();
   } while (!found);
   return found;

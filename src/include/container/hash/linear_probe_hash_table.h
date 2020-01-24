@@ -87,10 +87,22 @@ class LinearProbeHashTable : public HashTable<KeyType, ValueType, KeyComparator>
   size_t GetSize();
 
  private:
+  /**
+   * Inserts a key-value pair into the hash table.
+   * @param transaction the current transaction
+   * @param key the key to create
+   * @param value the value to be associated with the key
+   * @return true if insert succeeded, false otherwise
+   */
+  bool InsertImpl(Transaction *transaction, HashTableHeaderPage *header_page, const KeyType &key,
+                  const ValueType &value);
+  void InitPages(size_t num_buckets, page_id_t *header_page_id);
   // member variable
   page_id_t header_page_id_;
   BufferPoolManager *buffer_pool_manager_;
   KeyComparator comparator_;
+  size_t num_buckets_;
+  size_t num_entries_;
 
   // Readers includes inserts and removes, writer is only resize
   ReaderWriterLatch table_latch_;

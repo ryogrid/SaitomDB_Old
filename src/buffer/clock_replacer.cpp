@@ -52,9 +52,9 @@ void ClockReplacer::Pin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> lock(latch_);
   auto it = frame_map_.find(frame_id);
   if (it != frame_map_.end()) {
-      clock_[it->second].first = -1;
-      clock_[it->second].second = false;
-      frame_map_.erase(it);
+    clock_[it->second].first = -1;
+    clock_[it->second].second = false;
+    frame_map_.erase(it);
   }
 }
 

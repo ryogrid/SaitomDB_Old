@@ -141,7 +141,6 @@ class BufferPoolManager {
   Page *NewPageImpl(page_id_t *page_id);
   frame_id_t GetAvailableFrameImpl();
 
-
   /**
    * Deletes a page from the buffer pool.
    * @param page_id id of page to be deleted

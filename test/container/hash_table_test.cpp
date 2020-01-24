@@ -19,9 +19,53 @@
 #include "murmur3/MurmurHash3.h"
 
 namespace bustub {
+TEST(HashTableTest, SelfTest) {
+  auto *disk_manager = new DiskManager("test.db");
+  auto *bpm = new BufferPoolManager(50, disk_manager);
+
+  // insert more than 1000, > 1000 should be failed
+  LinearProbeHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), 1000, HashFunction<int>());
+  for (int i = 0; i < 1000; i++) {
+    EXPECT_TRUE(ht.Insert(nullptr, i, i));
+  }
+  for (int i = 1000; i < 2000; i++) {
+    EXPECT_FALSE(ht.Insert(nullptr, i, i));
+  }
+  ht.Resize(2000);
+  // should be found
+  for (int i = 0; i < 1000; i++) {
+    std::vector<int> res;
+    ht.GetValue(nullptr, i, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+  }
+  // delete 500 value
+  for (int i = 0; i < 1000; i++) {
+    if (i % 2 == 0) {
+      // (0, 0) has been deleted
+      EXPECT_TRUE(ht.Remove(nullptr, i, i));
+    }
+  }
+  ht.Resize(500);
+  // should be found
+  for (int i = 0; i < 1000; i++) {
+    std::vector<int> res;
+    ht.GetValue(nullptr, i, &res);
+    if (i % 2 == 1) {
+      EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
+      EXPECT_EQ(i, res[0]);
+    } else {
+      EXPECT_EQ(0, res.size()) << "Failed to keep " << i << std::endl;
+    }
+  }
+  disk_manager->ShutDown();
+  remove("test.db");
+  delete disk_manager;
+  delete bpm;
+}
 
 // NOLINTNEXTLINE
-TEST(HashTableTest, DISABLED_SampleTest) {
+TEST(HashTableTest, SampleTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManager(50, disk_manager);
 

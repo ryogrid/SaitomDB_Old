@@ -34,7 +34,7 @@ BufferPoolManager::~BufferPoolManager() {
   delete replacer_;
 }
 frame_id_t BufferPoolManager::GetAvailableFrameImpl() {
-    // first find the free list
+  // first find the free list
   frame_id_t r = -1;
   std::unique_lock<std::mutex> lock(latch_);
   if (free_list_.size() > 0) {
@@ -45,7 +45,7 @@ frame_id_t BufferPoolManager::GetAvailableFrameImpl() {
     // get from replacement
     bool ret = replacer_->Victim(&r);
     assert(ret == true);
-    Page* page = &(pages_[r]);
+    Page *page = &(pages_[r]);
     if (page->IsDirty()) {
       // write it back
       page->WLatch();
@@ -84,7 +84,7 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   }
   // first find the free list
   frame_id_t r = GetAvailableFrameImpl();
-  Page* page = &(pages_[r]);
+  Page *page = &(pages_[r]);
   page->WLatch();
   page->pin_count_++;
   page->page_id_ = page_id;
@@ -99,7 +99,7 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
 }
 
 bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
-  Page* page = nullptr;
+  Page *page = nullptr;
   frame_id_t frame_id = -1;
   {
     std::lock_guard<std::mutex> lock(latch_);
@@ -126,7 +126,7 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
 
 bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   // Make sure you call DiskManager::WritePage!
-  Page* page = nullptr;
+  Page *page = nullptr;
   {
     std::lock_guard<std::mutex> lock(latch_);
     auto it = page_table_.find(page_id);
@@ -157,7 +157,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   }
   frame_id_t r = GetAvailableFrameImpl();
   *page_id = disk_manager_->AllocatePage();
-  Page* page = &(pages_[r]);
+  Page *page = &(pages_[r]);
   page->WLatch();
   page->pin_count_++;
   page->page_id_ = *page_id;
@@ -188,19 +188,19 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
     }
     page = &(pages_[it->second]);
   }
-  
+
   page->WLatch();
-  if(page->GetPinCount() > 0) {
+  if (page->GetPinCount() > 0) {
     page->WUnlatch();
     return false;
   }
   page->page_id_ = INVALID_PAGE_ID;
   page->ResetMemory();
   page->WUnlatch();
+  disk_manager_->DeallocatePage(page_id);
   std::lock_guard<std::mutex> lock(latch_);
   page_table_.erase(page_id);
-  
-  return false;
+  return true;
 }
 
 void BufferPoolManager::FlushAllPagesImpl() {

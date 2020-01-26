@@ -162,16 +162,52 @@ class AggregationExecutor : public AbstractExecutor {
    */
   AggregationExecutor(ExecutorContext *exec_ctx, const AggregationPlanNode *plan,
                       std::unique_ptr<AbstractExecutor> &&child)
-      : AbstractExecutor(exec_ctx) {}
+      : AbstractExecutor(exec_ctx),
+        aht_(plan->GetAggregates(), plan->GetAggregateTypes()),
+        aht_iterator_(aht_.Begin()) {
+    plan_ = plan;
+    child_ = std::move(child);
+  }
 
   /** Do not use or remove this function, otherwise you will get zero points. */
   const AbstractExecutor *GetChildExecutor() const { return child_.get(); }
 
   const Schema *GetOutputSchema() override { return plan_->OutputSchema(); }
 
-  void Init() override {}
+  void Init() override {
+    Tuple tuple;
+    child_->Init();
+    while (child_->Next(&tuple)) {
+      aht_.InsertCombine(MakeKey(&tuple), MakeVal(&tuple));
+    }
+    aht_iterator_ = aht_.Begin();
+  }
 
-  bool Next(Tuple *tuple) override { return false; }
+  bool Next(Tuple *tuple) override {
+    if (aht_iterator_ == aht_.End()) {
+      return false;
+    }
+    while (aht_iterator_ != aht_.End()) {
+      if (plan_->GetHaving() != nullptr) {
+        if (!plan_->GetHaving()
+                 ->EvaluateAggregate(aht_iterator_.Key().group_bys_, aht_iterator_.Val().aggregates_)
+                 .GetAs<bool>()) {
+          aht_iterator_.operator++();
+          continue;
+        }
+      }
+      std::vector<Value> values;
+      for (auto col : plan_->OutputSchema()->GetColumns()) {
+        values.push_back(
+            col.GetExpr()->EvaluateAggregate(aht_iterator_.Key().group_bys_, aht_iterator_.Val().aggregates_));
+      }
+      aht_iterator_.operator++();
+      Tuple tuple1(values, plan_->OutputSchema());
+      *tuple = tuple1;
+      return true;
+    }
+    return false;
+  }
 
   /** @return the tuple as an AggregateKey */
   AggregateKey MakeKey(const Tuple *tuple) {
@@ -197,8 +233,8 @@ class AggregationExecutor : public AbstractExecutor {
   /** The child executor whose tuples we are aggregating. */
   std::unique_ptr<AbstractExecutor> child_;
   /** Simple aggregation hash table. */
-  // Uncomment me! SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator. */
-  // Uncomment me! SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
 };
 }  // namespace bustub

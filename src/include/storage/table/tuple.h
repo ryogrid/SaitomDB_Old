@@ -28,6 +28,8 @@ namespace bustub {
  * ---------------------------------------------------------------------
  */
 class Tuple {
+  friend class TmpTuplePage;
+
   friend class TablePage;
 
   friend class TableHeap;

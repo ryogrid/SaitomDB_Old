@@ -18,7 +18,10 @@
 #include "common/exception.h"
 #include "common/logger.h"
 #include "common/rid.h"
+#include "common/util/hash_util.h"
 #include "container/hash/linear_probe_hash_table.h"
+#include "storage/index/hash_comparator.h"
+#include "storage/table/tmp_tuple.h"
 
 namespace bustub {
 
@@ -241,6 +244,7 @@ bool HASH_TABLE_TYPE::InsertImpl(Transaction *transaction, HashTableHeaderPage *
   } while (old_bucket_idx != bucket_idx);
   return false;
 }
+template class LinearProbeHashTable<hash_t, TmpTuple, HashComparator>;
 
 template class LinearProbeHashTable<int, int, IntComparator>;
 

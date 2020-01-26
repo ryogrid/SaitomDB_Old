@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -77,11 +78,11 @@ class SimpleHashJoinHashTable {
 };
 
 // TODO(student): when you are ready to attempt task 3, replace the using declaration!
-using HT = SimpleHashJoinHashTable;
+// using HT = SimpleHashJoinHashTable;
 
-// using HashJoinKeyType = ???;
-// using HashJoinValType = ???;
-// using HT = LinearProbeHashTable<HashJoinKeyType, HashJoinValType, HashComparator>;
+using HashJoinKeyType = hash_t;
+using HashJoinValType = TmpTuple;
+using HT = LinearProbeHashTable<HashJoinKeyType, HashJoinValType, HashComparator>;
 
 /**
  * HashJoinExecutor executes hash join operations.
@@ -114,10 +115,29 @@ class HashJoinExecutor : public AbstractExecutor {
     left_->Init();
     // init hash table
     Tuple tuple;
+    page_id_t tmp_page_id;
+    auto tmp_tuple_page =
+        reinterpret_cast<TmpTuplePage *>(exec_ctx_->GetBufferPoolManager()->NewPage(&tmp_page_id, nullptr)->GetData());
+    tmp_tuple_page->Init(tmp_page_id, PAGE_SIZE);
+    tmp_page_list.push_back(tmp_page_id);
     while (left_->Next(&tuple)) {
       hash_t t = HashValues(&tuple, plan_->GetLeftPlan()->OutputSchema(), plan_->GetLeftKeys());
-      jht_.Insert(exec_ctx_->GetTransaction(), t, tuple);
+      TmpTuple out(INVALID_PAGE_ID, 0);
+      if (!tmp_tuple_page->Insert(tuple, &out)) {
+        exec_ctx_->GetBufferPoolManager()->UnpinPage(tmp_page_id, true, nullptr);
+        tmp_tuple_page = reinterpret_cast<TmpTuplePage *>(
+            exec_ctx_->GetBufferPoolManager()->NewPage(&tmp_page_id, nullptr)->GetData());
+        tmp_tuple_page->Init(tmp_page_id, PAGE_SIZE);
+        // insert again
+        tmp_tuple_page->Insert(tuple, &out);
+        tmp_page_list.push_back(tmp_page_id);
+      }
+      if (!jht_.Insert(exec_ctx_->GetTransaction(), t, out)) {
+        jht_.Resize(jht_.GetSize() * 2);
+        jht_.Insert(exec_ctx_->GetTransaction(), t, out);
+      }
     }
+    exec_ctx_->GetBufferPoolManager()->UnpinPage(tmp_page_id, true, nullptr);
     // init right iter
     right_->Init();
   }
@@ -128,9 +148,9 @@ class HashJoinExecutor : public AbstractExecutor {
         return false;
       }
     }
-    std::vector<Tuple> t;
     while (true) {
       hash_t h = HashValues(&right_tuple_, plan_->GetRightPlan()->OutputSchema(), plan_->GetRightKeys());
+      std::vector<TmpTuple> t;
       jht_.GetValue(exec_ctx_->GetTransaction(), h, &t);
       if (t.empty()) {
         if (!right_->Next(&right_tuple_)) {
@@ -138,13 +158,18 @@ class HashJoinExecutor : public AbstractExecutor {
         }
       }
       while (value_index_ < t.size()) {
+        auto tmp_tuple_page = reinterpret_cast<TmpTuplePage *>(
+            exec_ctx_->GetBufferPoolManager()->FetchPage(t[value_index_].GetPageId(), nullptr)->GetData());
+        Tuple left_tuple;
+        tmp_tuple_page->GetTuple(t[value_index_].GetOffset(), &left_tuple);
+        exec_ctx_->GetBufferPoolManager()->UnpinPage(t[value_index_].GetPageId(), false, nullptr);
         if (plan_->Predicate()
-                ->EvaluateJoin(&(t[value_index_]), plan_->GetLeftPlan()->OutputSchema(), &right_tuple_,
+                ->EvaluateJoin(&left_tuple, plan_->GetLeftPlan()->OutputSchema(), &right_tuple_,
                                plan_->GetRightPlan()->OutputSchema())
                 .GetAs<bool>()) {
           std::vector<Value> values;
           for (auto col : plan_->OutputSchema()->GetColumns()) {
-            values.push_back(col.GetExpr()->EvaluateJoin(&t[value_index_], plan_->GetLeftPlan()->OutputSchema(),
+            values.push_back(col.GetExpr()->EvaluateJoin(&left_tuple, plan_->GetLeftPlan()->OutputSchema(),
                                                          &right_tuple_, plan_->GetRightPlan()->OutputSchema()));
           }
           Tuple tuple1(values, plan_->OutputSchema());
@@ -196,6 +221,7 @@ class HashJoinExecutor : public AbstractExecutor {
   /** The identity hash function. */
   IdentityHashFunction jht_hash_fn_{};
   TableMetadata *meta_;
+  std::vector<page_id_t> tmp_page_list;
 
   /** The hash table that we are using. */
   HT jht_;

@@ -31,6 +31,9 @@ Transaction *TransactionManager::Begin(Transaction *txn) {
 
   if (enable_logging) {
     // TODO(student): Add logging here.
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::BEGIN);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
   }
 
   txn_map[txn->GetTransactionId()] = txn;
@@ -55,6 +58,9 @@ void TransactionManager::Commit(Transaction *txn) {
 
   if (enable_logging) {
     // TODO(student): add logging here
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::COMMIT);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
   }
 
   // Release all the locks.
@@ -85,6 +91,9 @@ void TransactionManager::Abort(Transaction *txn) {
 
   if (enable_logging) {
     // TODO(student): add logging here
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::ABORT);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
   }
 
   // Release all the locks.

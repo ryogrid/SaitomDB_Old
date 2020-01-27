@@ -32,6 +32,7 @@ class LogManager {
       : next_lsn_(0), persistent_lsn_(INVALID_LSN), disk_manager_(disk_manager) {
     log_buffer_ = new char[LOG_BUFFER_SIZE];
     flush_buffer_ = new char[LOG_BUFFER_SIZE];
+    offset_ = 0;
   }
 
   ~LogManager() {
@@ -53,6 +54,7 @@ class LogManager {
 
  private:
   // TODO(students): you may add your own member variables
+  std::atomic<size_t> offset_;
 
   /** The atomic counter which records the next log sequence number. */
   std::atomic<lsn_t> next_lsn_;

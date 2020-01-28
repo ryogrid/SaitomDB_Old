@@ -139,6 +139,9 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   if (!page->IsDirty()) {
     return true;
   }
+  if (page->GetLSN() > log_manager_->GetPersistentLSN()) {
+    log_manager_->Flush();
+  }
   // page->WLatch();
   disk_manager_->WritePage(page_id, page->GetData());
   page->is_dirty_ = false;
@@ -207,9 +210,9 @@ void BufferPoolManager::FlushAllPagesImpl() {
   // You can do it!
   std::lock_guard<std::mutex> lock(latch_);
   for (auto it : page_table_) {
-    if (!pages_[it.second].IsDirty()) {
-      continue;
-    }
+    // if (!pages_[it.second].IsDirty()) {
+    //  continue;
+    //}
     // pages_[it.second].WLatch();
     disk_manager_->WritePage(it.first, pages_[it.second].GetData());
     pages_[it.second].is_dirty_ = false;

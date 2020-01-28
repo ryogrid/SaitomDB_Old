@@ -44,6 +44,7 @@ class LogManager {
 
   void RunFlushThread();
   void StopFlushThread();
+  void Flush();
 
   lsn_t AppendLogRecord(LogRecord *log_record);
 
@@ -55,6 +56,7 @@ class LogManager {
  private:
   // TODO(students): you may add your own member variables
   std::atomic<size_t> offset_;
+  std::atomic<lsn_t> log_buffer_lsn_;
 
   /** The atomic counter which records the next log sequence number. */
   std::atomic<lsn_t> next_lsn_;

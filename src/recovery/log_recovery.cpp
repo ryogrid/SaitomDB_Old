@@ -73,7 +73,7 @@ void LogRecovery::Redo() {
     LogRecord log_record;
     while (DeserializeLogRecord(log_buffer_ + buffer_offset, &log_record)) {
       active_txn_[log_record.txn_id_] = log_record.lsn_;
-      active_txn_[log_record.lsn_] = file_offset + buffer_offset;
+      lsn_mapping_[log_record.lsn_] = file_offset + buffer_offset;
       if (log_record.log_record_type_ == LogRecordType::INSERT) {
         auto page =
             static_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record.insert_rid_.GetPageId(), nullptr));
@@ -137,6 +137,47 @@ void LogRecovery::Redo() {
  *undo phase on TABLE PAGE level(table/table_page.h)
  *iterate through active txn map and undo each operation
  */
-void LogRecovery::Undo() {}
+void LogRecovery::Undo() {
+  LogRecord log_record;
+  for (auto it : active_txn_) {
+    auto lsn = it.second;
+    while (lsn != INVALID_LSN) {
+      auto file_offset = lsn_mapping_[lsn];
+      LOG_DEBUG("file_offset: %d", file_offset);
+      disk_manager_->ReadLog(log_buffer_, LOG_BUFFER_SIZE, file_offset);
+      DeserializeLogRecord(log_buffer_, &log_record);
+      if (log_record.log_record_type_ == LogRecordType::INSERT) {
+        auto page =
+            static_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record.insert_rid_.GetPageId(), nullptr));
+        LOG_DEBUG("insert log type, page lsn:%d, log lsn:%d", page->GetLSN(), log_record.GetLSN());
+        page->ApplyDelete(log_record.insert_rid_, nullptr, nullptr);
+        buffer_pool_manager_->UnpinPage(log_record.insert_rid_.GetPageId(), true, nullptr);
+      } else if (log_record.log_record_type_ == LogRecordType::APPLYDELETE) {
+        auto page =
+            static_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record.delete_rid_.GetPageId(), nullptr));
+        page->InsertTuple(log_record.delete_tuple_, &log_record.delete_rid_, nullptr, nullptr, nullptr);
+        buffer_pool_manager_->UnpinPage(log_record.delete_rid_.GetPageId(), true, nullptr);
+      } else if (log_record.log_record_type_ == LogRecordType::MARKDELETE) {
+        auto page =
+            static_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record.delete_rid_.GetPageId(), nullptr));
+        page->RollbackDelete(log_record.delete_rid_, nullptr, nullptr);
+        buffer_pool_manager_->UnpinPage(log_record.delete_rid_.GetPageId(), true, nullptr);
+      } else if (log_record.log_record_type_ == LogRecordType::ROLLBACKDELETE) {
+        auto page =
+            static_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record.delete_rid_.GetPageId(), nullptr));
+        page->MarkDelete(log_record.delete_rid_, nullptr, nullptr, nullptr);
+        buffer_pool_manager_->UnpinPage(log_record.delete_rid_.GetPageId(), true, nullptr);
+      } else if (log_record.log_record_type_ == LogRecordType::UPDATE) {
+        auto page =
+            static_cast<TablePage *>(buffer_pool_manager_->FetchPage(log_record.update_rid_.GetPageId(), nullptr));
+        page->UpdateTuple(log_record.old_tuple_, &log_record.new_tuple_, log_record.update_rid_, nullptr, nullptr,
+                          nullptr);
+        buffer_pool_manager_->UnpinPage(log_record.update_rid_.GetPageId(), true, nullptr);
+      }
+      lsn = log_record.prev_lsn_;
+    }
+  }
+  buffer_pool_manager_->FlushAllPages();
+}
 
 }  // namespace bustub

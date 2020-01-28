@@ -13,6 +13,17 @@
 #include "recovery/log_manager.h"
 
 namespace bustub {
+void LogManager::Flush() {
+  std::unique_lock lock(latch_);
+  auto lsn = log_buffer_lsn_.load();
+  auto offset = offset_.load();
+  offset_ = 0;
+  lock.unlock();
+  std::swap(log_buffer_, flush_buffer_);
+  printf("offset:%lu\n", offset);
+  disk_manager_->WriteLog(flush_buffer_, offset);
+  persistent_lsn_ = lsn;
+}
 /*
  * set enable_logging = true
  * Start a separate thread to execute flush to disk operation periodically
@@ -49,9 +60,21 @@ void LogManager::StopFlushThread() { enable_logging = false; }
  */
 lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
   // First, serialize the must have fields(20 bytes in total)
+  // std::unique_lock lock(latch_);
+  if (LOG_BUFFER_SIZE - offset_ < LogRecord::HEADER_SIZE) {
+    Flush();
+  }
   log_record->lsn_ = next_lsn_++;
   memcpy(log_buffer_ + offset_, log_record, LogRecord::HEADER_SIZE);
+  if ((int32_t)(LOG_BUFFER_SIZE - offset_) < log_record->size_) {
+    Flush();
+    // do it again in new buffer
+    memcpy(log_buffer_ + offset_, log_record, LogRecord::HEADER_SIZE);
+  }
+  log_buffer_lsn_ = log_record->lsn_;
   int pos = offset_ + LogRecord::HEADER_SIZE;
+  offset_ += log_record->size_;
+  // lock.unlock();
 
   if (log_record->log_record_type_ == LogRecordType::INSERT) {
     memcpy(log_buffer_ + pos, &log_record->insert_rid_, sizeof(RID));
@@ -74,12 +97,6 @@ lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
     log_record->new_tuple_.SerializeTo(log_buffer_ + pos);
   } else if (log_record->log_record_type_ == LogRecordType::NEWPAGE) {
     memcpy(log_buffer_ + pos, &log_record->prev_page_id_, sizeof(page_id_t));
-  }
-  offset_ += log_record->size_;
-  if (log_record->log_record_type_ == LogRecordType::COMMIT) {
-    std::swap(log_buffer_, flush_buffer_);
-    disk_manager_->WriteLog(flush_buffer_, offset_);
-    offset_ = 0;
   }
 
   return log_record->lsn_;

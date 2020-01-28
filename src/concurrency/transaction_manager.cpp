@@ -61,6 +61,7 @@ void TransactionManager::Commit(Transaction *txn) {
     LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::COMMIT);
     lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
     txn->SetPrevLSN(lsn);
+    log_manager_->Flush();
   }
 
   // Release all the locks.

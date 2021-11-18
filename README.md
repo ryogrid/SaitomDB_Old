@@ -1,4 +1,4 @@
-This project starts based on BusTub RDB (education purpose impl of RDB) codes.  
+This project starts based on BusTub RDBMS codes (education purpose impl).  
 Original codes of BusTub is [here](https://github.com/cmu-db/bustub).
-
-Firstly, porting C++ codes to Golang is planned.  
+  
+Firstly, porting codes in C++ to these in Golang is planned.  

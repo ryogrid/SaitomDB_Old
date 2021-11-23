@@ -1,0 +1,5 @@
+./concurrency/lock_manager_test.cpp:59:TEST(LockManagerTest, DISABLED_BasicTest) {
+./concurrency/lock_manager_test.cpp:65:TEST(LockManagerTest, DISABLED_GraphEdgeTest) {
+./concurrency/lock_manager_test.cpp:80:TEST(LockManagerTest, DISABLED_BasicCycleTest) {
+./concurrency/lock_manager_test.cpp:98:TEST(LockManagerTest, DISABLED_BasicDeadlockDetectionTest) {
+./table/tuple_test.cpp:27:TEST(TupleTest, DISABLED_TableHeapTest) {

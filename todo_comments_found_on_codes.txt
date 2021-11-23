@@ -1,0 +1,15 @@
+./catalog/table_generator.cpp:20:  // TODO(Amadou): Break up in two branches if this is too weird.
+./concurrency/lock_manager.cpp:62:      // TODO(student): remove the continue and add your cycle detection and abort code here
+./concurrency/transaction_manager.cpp:33:    // TODO(student): Add logging here.
+./concurrency/transaction_manager.cpp:60:    // TODO(student): add logging here
+./concurrency/transaction_manager.cpp:94:    // TODO(student): add logging here
+./include/buffer/clock_replacer.h:51:  // TODO(student): implement me!
+./include/catalog/column.h:106:        // TODO(Amadou): Confirm this.
+./include/common/exception.h:26:// TODO(WAN): the comment I added below is a lie, but you shouldn't need to poke around here. Don't worry about it.
+./include/common/logger.h:70:// TODO(TAs) : any way to use pragma message in GCC?
+./include/execution/executors/hash_join_executor.h:80:// TODO(student): when you are ready to attempt task 3, replace the using declaration!
+./include/recovery/log_manager.h:57:  // TODO(students): you may add your own member variables
+./include/type/abstract_pool.h:31:   * TODO: Provide good error codes for failure cases
+./storage/table/table_heap.cpp:94:  // TODO(Amadou): remove empty page
+./storage/table/tuple.cpp:23:// TODO(Amadou): It does not look like nulls are supported. Add a null bitmap?
+./type/value.cpp:244:      // TODO(TAs): How to represent a null string here?
